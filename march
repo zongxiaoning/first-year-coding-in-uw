@@ -1,0 +1,180 @@
+a8 1
+
+;; (a)
+;; (mapfn list-1 list-2) produce the list of the results of applying each
+;;  function in list-1 turn to the given numbers in list-2
+;; mapfn: List-Of-Function List-Of-Num -> List-Of-Any
+;; examples
+(check-expect (mapfn (list + -) '(3 2)) '(5 1))
+(check-expect (mapfn (list list *) '(3 2)) '((3 2) 6))
+
+(define (mapfn list-1 list-2)
+  (cond
+    [(empty? list-1) empty]
+    [else (cons (local [(define function (first list-1))]
+                  (function (first list-2) (second list-2)))
+                (mapfn (rest list-1) list-2))]))
+
+;; tests
+(check-expect (mapfn empty (list 1 2)) empty)
+(check-expect (mapfn (list + +) (list 1 2)) '(3 3))
+(check-expect (mapfn (list +) (list 2 3)) '(5))
+(check-expect (mapfn (list / *) (list 0 9)) '(0 0))
+(check-expect (mapfn (list list +) (list 1 -1)) '((1 -1) 0))
+(check-expect (mapfn (list + * /) (list 2 2)) '(4 4 1))
+
+;; (is-in-order? list-p list-o) produces the
+;; is-in-order?: (listof (list (Any -> Bool) (XX -> Boolean)))
+;;               (list0f Any) -> (anyof Bool 'error)
+;; requires: first list is non-empty
+;; examples
+(check-expect (is-in-order? (list (list integer? <)) empty) true)
+(check-expect (is-in-order? (list (list integer? <)) (list 1)) true)
+
+(define (is-in-order? list-p list-o)
+  (cond [(empty? list-o) true]
+        [(empty? (rest list-o)) true]
+        [(empty? list-p) 'error]
+        [(local [(define predicate (first (first list-p)))]
+           (predicate (first list-o)))
+         (local [(define binary (second (first list-p)))]
+           (cond [(binary (first list-o) (second list-o))
+                  (is-in-order? list-p (rest list-o))]
+                 [else false]))]
+        [else (is-in-order? (rest list-p) list-o)]))
+
+;; tests
+(check-expect (is-in-order? (list (list integer? <)) empty) true)
+(check-expect (is-in-order? (list (list integer? >)) (list 1 2 7)) false)
+(check-expect (is-in-order? (list (list integer? >)) (list 2 1 7)) false)
+(check-expect (is-in-order? (list (list string? string<?)) (list "1" "2" "7")) true)
+(check-expect (is-in-order? (list (list symbol? symbol=?) (list integer? =)) (list 1 1 1)) true)
+(check-expect (is-in-order? (list (list integer? >) (list integer? <)) (list 1 1 1)) false)
+
+;; (bst-internal-count bst) produces the total number of internal nodes in the
+;;  BST
+;; bst-internal-count: BST -> Num
+;; Example:
+(check-expect (bst-internal-count (make-node 9 "9" (make-node 2 "2" empty empty) empty)) 1)
+(check-expect (bst-internal-count (make-node 2 "2" empty empty)) 0)
+
+(define (bst-internal-count bst)
+  (cond [(empty? bst) 0] 
+        [(and (empty? (node-left bst)) (empty? (node-right bst))) 0]
+        [(or (empty? (node-left bst)) (empty? (node-right bst)))
+         (+ 1 (bst-internal-count (node-left bst))
+            (bst-internal-count (node-right bst)))]
+        [else (+ 2 (bst-internal-count (node-left bst))
+                   (bst-internal-count (node-right bst)))]))
+;; tests
+(check-expect (bst-internal-count
+               (make-node 5 "5" (make-node 1 "1" empty empty)
+                          (make-node 6 "6" empty
+                                     (make-node 7 "7" empty empty)))) 3)
+(check-expect (bst-internal-count
+               (make-node 9 "9" empty
+                          (make-node 12 "12" empty
+                                     (make-node 19 "19" empty empty)))) 2)
+(check-expect (bst-internal-count
+               (make-node 3 "3" empty
+                          (make-node 19 "19" empty empty))) 1)
+(check-expect (bst-internal-count
+               (make-node 8 "8" (make-node 2 "2" empty
+                                           (make-node 3 "3" empty empty))
+                          empty))2)
+(check-expect (bst-internal-count
+               (make-node 5 "5"
+                          (make-node 3 "3"
+                                     (make-node 2 "2" empty empty) empty)
+                          (make-node 7 "7"
+                                     (make-node 6 "6" empty empty) empty))) 4)
+(check-expect (bst-internal-count (make-node 4 "4" empty empty)) 0)
+(check-expect (bst-internal-count empty) 0)
+
+
+;; (b)
+;; (bst-bounded? bst low up) produces the true if all keys in the bst are greater
+;;  than or equal to the lower bound and less than or equal to the upper bound
+;;  and false otherwise
+;; bst-bounded? BST Int Int -> Boolean
+;; Examples:
+(check-expect (bst-bounded? (make-node 3 "3" empty empty) 1 4) true)
+(check-expect (bst-bounded? (make-node 8 "8" (make-node 2 "2" empty empty) empty) 4 6) false)
+
+(define (bst-bounded? bst low up)
+  (cond
+    [(empty? bst) true]
+    [(and (> (node-key bst) low) (< (node-key bst) up))
+     (and (bst-bounded? (node-left bst) low up)
+          (bst-bounded? (node-right bst) low up))]
+    [else false]))
+
+;; tests
+(check-expect (bst-bounded? (make-node 3 "3" (make-node 2 "2" empty empty)(make-node 4 "4" empty empty)) 1 5) true)
+(check-expect (bst-bounded? (make-node 3 "3"(make-node 2 "2" empty empty)(make-node 4 "4" empty empty))1 2) false)
+(check-expect (bst-bounded? (make-node 5 "5"
+                                       (make-node 3 "3"
+                                                  (make-node 2 "2" empty empty)
+                                                  (make-node 4 "4" empty empty))
+                                       (make-node 7 "7"
+                                                  (make-node 6 "6" empty empty)
+                                                  (make-node 8 "8" empty empty)))
+                            1 9) true)
+(check-expect (bst-bounded? (make-node 5 "5"
+                                       (make-node 3 "3"
+                                                  (make-node 2 "2" empty empty)
+                                                  (make-node 4 "4" empty empty))
+                                       (make-node 7 "7"
+                                                  (make-node 6 "6" empty empty)
+                                                  (make-node 8 "8" empty empty)))
+                            3 5) false)
+(check-expect (bst-bounded? empty 1 10) true)
+
+;; (c)
+;; (bst-add bst key value) produces a BST identical to the consumed BST except
+;;   the value previously associated with the key is replaced by the new
+;;   value
+;; bst-add: BST Num Str -> BST
+;; Example:
+(check-expect (bst-add (make-node 2 "2" empty empty) 3 "3")
+              (make-node 2 "2" empty (make-node 3 "3" empty empty)))
+(check-expect (bst-add (make-node 2 "2" empty empty) 2 "3")
+              (make-node 2 "3" empty empty))
+
+(define (bst-add bst key value)
+  (cond [(empty? bst) (make-node key value empty empty)]
+        [(= (node-key bst) key)
+         (make-node (node-key bst) value (node-left bst) (node-right bst))]
+        [(> (node-key bst) key)
+         (make-node (node-key bst) (node-val bst)
+                    (bst-add (node-left bst) key value) (node-right bst))]
+        [(< (node-key bst) key)
+         (make-node (node-key bst) (node-val bst)
+                    (node-left bst) (bst-add (node-right bst) key value))]))
+
+;; tests
+(check-expect (bst-add (make-node 4 "4" empty empty) 2 "2")
+              (make-node 4 "4" (make-node 2 "2" empty empty) empty))
+            
+;; (d)
+;; (bst->al bst) produces a list containing all the values stored in
+;;  in the bst with no duplicates
+;; bst->al: BST -> List-Of-Str
+;; examples:
+(check-expect (bst->al (make-node 5 "5" (make-node 2 "2" empty empty) empty)) '((2 "2") (5 "5")))
+(check-expect (bst->al (make-node 5 "5" empty (make-node 6 "6" empty empty))) '((5 "5") (6 "6")))
+
+              
+(define (bst->al bst)
+  (cond [(empty? bst) empty]
+        [else (append (bst->al (node-left bst))
+                      (list (list (node-key bst) (node-val bst)))
+                      (bst->al (node-right bst)))]))
+                                                            
+(check-expect (bst->al (make-node 0 "0" (make-node -1 "-1" empty empty) empty)) '((-1 "-1") (0 "0")))
+(check-expect (bst->al (make-node 1 "1" empty (make-node 2 "2" empty empty))) '((1 "1") (2 "2")))
+(check-expect (bst->al (make-node 2 "2" (make-node 1 "1" empty empty) (make-node 3 "3" empty empty))) '((1 "1") (2 "2") (3 "3")))
+(check-expect (bst->al (make-node 1 "1" empty empty)) '((1 "1")))
+(check-expect (bst->al empty) empty)
+
+A7是我永久的痛 
