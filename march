@@ -178,3 +178,4 @@ a8 1
 (check-expect (bst->al empty) empty)
 
 A7是我永久的痛 
+又及 example丑不是我的错
